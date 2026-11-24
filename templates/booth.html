@@ -87,6 +87,9 @@
           </fieldset>
           <label class="target">统一亮度目标<input required name="target" type="number" min="1" max="200"></label>
           <button id="apply" class="primary wide">应用试放设置</button>
+          <button id="balance" class="wide" type="button">采用匀亮建议</button>
+          <p class="small" id="balanceHint">仅重算评估选区内两台都有覆盖的像素；其余位置两张驱动图保持当前灰阶。</p>
+          <div id="balanceSummary" class="balance-summary" hidden></div>
         </form>
         <div class="outputs">
           <h2>出片和留档</h2>

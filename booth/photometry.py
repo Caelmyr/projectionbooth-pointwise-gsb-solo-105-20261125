@@ -1,4 +1,4 @@
-"""Render manual test levels against measured projector white fields."""
+"""Render playback rasters against measured projector white fields."""
 
 import numpy as np
 
@@ -15,16 +15,22 @@ def measurement(field):
     return field.astype(np.float32) * (UNITS_PER_WHITE / 255)
 
 
-def emit(fields, config):
-    return {key: measurement(fields[key]) * (config[key]['drive'] / 100) for key in PROJECTORS}
+def emit(fields, drives):
+    """Per-pixel relative brightness of each projector from its drive raster."""
+    return {key: measurement(fields[key]) * (drives[key].astype(np.float32) / 255.0)
+            for key in PROJECTORS}
 
 
-def read_mix(fields, config):
-    light = emit(fields, config)
+def cast_field(light, config):
     total = light['a'] + light['b']
     chroma = sum(light[key] * config[key]['cast'] for key in PROJECTORS)
-    cast = np.divide(chroma, total, out=np.zeros_like(total), where=total > 0)
-    return light, total, cast
+    return np.divide(chroma, total, out=np.zeros_like(total), where=total > 0)
+
+
+def read_mix(fields, drives, config):
+    light = emit(fields, drives)
+    total = light['a'] + light['b']
+    return light, total, cast_field(light, config)
 
 
 def composite(total, cast):
@@ -41,17 +47,19 @@ def difference(total, target):
     return np.rint(neutral + shading * (tone - neutral)).astype('uint8')
 
 
-def view(fields, config, kind):
+def view(fields, drives, config, kind):
     if kind in PROJECTORS:
         return fields[kind]
-    _, total, cast = read_mix(fields, config)
+    _, total, cast = read_mix(fields, drives, config)
     return composite(total, cast) if kind == 'mix' else difference(total, config['target'])
 
 
-def statistics(fields, config):
+def statistics(fields, drives, config):
     window = rectangle(config)
-    active = {key: fields[key][window] > 0 for key in PROJECTORS}
-    _, total, cast = read_mix({key: fields[key][window] for key in PROJECTORS}, config)
+    local_fields = {key: fields[key][window] for key in PROJECTORS}
+    local_drives = {key: drives[key][window] for key in PROJECTORS}
+    active = {key: local_fields[key] > 0 for key in PROJECTORS}
+    light, total, cast = read_mix(local_fields, local_drives, config)
     overlap = active['a'] & active['b']
     values = total[overlap]
     metrics = {'overlap': int(values.size), 'single': int(np.count_nonzero(active['a'] ^ active['b'])),

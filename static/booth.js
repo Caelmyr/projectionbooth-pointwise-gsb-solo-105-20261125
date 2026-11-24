@@ -5,8 +5,8 @@ const content = {
   difference: '从目标偏暗的地方显橙色，偏亮的地方显蓝色。',
   a: 'A 机满驱白场。零代表 A 机没有有效覆盖。',
   b: 'B 机满驱白场。零代表 B 机没有有效覆盖。',
-  'drive-a': '送给 A 机的驱动图。白色对应满驱。',
-  'drive-b': '送给 B 机的驱动图。白色对应满驱。',
+  'drive-a': '送给 A 机的驱动图。白色对应满驱，匀亮后选区内为逐像素灰阶。',
+  'drive-b': '送给 B 机的驱动图。白色对应满驱，匀亮后选区内为逐像素灰阶。',
 };
 
 async function request(url, method = 'GET', data) {
@@ -153,6 +153,36 @@ function resetPoint() {
   get('pointInfo').textContent = '点击幕面，或输入原像素坐标。';
 }
 
+function renderBalance(project) {
+  const box = get('balanceSummary');
+  const summary = project.balance;
+  if (project.playback !== 'balanced' || !summary) {
+    box.hidden = true;
+    box.replaceChildren();
+    return;
+  }
+  const lines = [
+    '匀亮版本 · 目标 ' + summary.target,
+    '双机覆盖 ' + summary.overlap + ' px · 已重算 ' + summary.adjusted + ' px',
+  ];
+  if (summary.shortfall > 0) {
+    lines.push('达不到目标 ' + summary.shortfall + ' px（能力不足 ' +
+      (summary.capacity_shortfall || 0) + ' · 整数灰阶够不着 ' +
+      (summary.quantization_shortfall || 0) + '）· 容差 ±' + summary.tolerance);
+    if ((summary.capacity_shortfall || 0) > 0) {
+      lines.push('最大能力缺口 ' + summary.max_deficit + '（两台均已开到本机最高灰阶）');
+    }
+  } else {
+    lines.push('全部落在目标 ±' + summary.tolerance + ' 内');
+  }
+  box.replaceChildren(...lines.map((line) => {
+    const item = document.createElement('span');
+    item.textContent = line;
+    return item;
+  }));
+  box.hidden = false;
+}
+
 async function show(project, switched) {
   state.project = project;
   if (switched) {
@@ -163,8 +193,11 @@ async function show(project, switched) {
   get('empty').hidden = true;
   get('library').open = false;
   get('projectName').textContent = project.name;
-  get('screenSize').textContent = project.size.join(' × ') + ' px · 第 ' + project.revision + ' 版';
+  const mode = project.playback === 'balanced' ? '逐像素匀亮' : '平面手动';
+  get('screenSize').textContent = project.size.join(' × ') + ' px · 第 ' + project.revision +
+    ' 版 · ' + mode;
   formFields(project);
+  renderBalance(project);
   renderView();
   const url = new URL(window.location.href);
   url.searchParams.set('project', project.id);
@@ -185,12 +218,18 @@ async function inspect(x, y) {
   get('marker').style.top = (100 * (y + .5) / height) + '%';
   get('marker').hidden = false;
   const heading = document.createElement('b');
-  heading.textContent = '(' + point.x + ', ' + point.y + ') · ' + (point.selected ? '选区内' : '选区外');
-  const values = ['实测叠加 ' + point.total + ' / 目标 ' + point.target + ' · 暖冷偏移 ' + point.cast];
+  heading.textContent = '(' + point.x + ', ' + point.y + ') · ' + (point.selected ? '选区内' : '选区外') +
+    (point.shortfall ? ' · 达不到目标（已开双机上限）' : '');
+  const gap = point.total - point.target;
+  const gapText = Math.abs(gap) <= 0.5 ? '达标' :
+    (gap < 0 ? '偏暗 ' : '偏亮 ') + Math.abs(gap).toFixed(3);
+  const values = ['实测叠加 ' + point.total + ' / 目标 ' + point.target +
+    ' · ' + gapText + ' · 暖冷偏移 ' + point.cast];
   for (const key of ['a', 'b']) {
     const sample = point.projectors[key];
-    values.push(key.toUpperCase() + ' 机 · 白场 ' + sample.field + ' · 驱动 ' + sample.drive +
-      '% / 上限 ' + sample.limit + '% · 亮度贡献 ' + sample.contribution);
+    values.push(key.toUpperCase() + ' 机 · 白场 ' + sample.field + ' · 灰阶 ' + sample.grey +
+      '（驱动 ' + sample.drive + '% / 上限 ' + sample.limit + '%，最高灰阶 ' +
+      sample.max_grey + '）· 亮度贡献 ' + sample.contribution);
   }
   const rows = values.map((line) => {
     const item = document.createElement('div');
@@ -230,9 +269,20 @@ get('setup').addEventListener('submit', (event) => {
       config: readForm(),
     });
     await show(project, false);
-    notify('试放设置已应用。');
+    notify('试放设置已应用，驱动图回到平面手动灰阶。');
   });
 });
+
+get('balance').addEventListener('click', () => busy(get('balance'), async () => {
+  const project = await request(base() + '/balance', 'POST', {
+    revision: state.project.revision,
+  });
+  await show(project, false);
+  const summary = project.balance;
+  notify(summary.shortfall > 0
+    ? '匀亮建议已采用：' + summary.shortfall + ' 个双机像素开到上限仍达不到目标，点测可查看缺口与各自贡献。'
+    : '匀亮建议已采用，选区内双机像素叠加亮度均落在目标 ±' + summary.tolerance + ' 内。');
+}));
 
 get('tabs').addEventListener('click', (event) => {
   const button = event.target.closest('[data-view]');

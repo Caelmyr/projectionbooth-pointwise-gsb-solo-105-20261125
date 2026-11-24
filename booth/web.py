@@ -62,32 +62,36 @@ def create_app(root):
             return jsonify(library.apply(key, body()))
         return jsonify(library.record(key))
 
+    @api.post('/projects/<key>/balance')
+    def balance(key):
+        return jsonify(library.balance(key, body()))
+
     @api.get('/projects/<key>/view/<kind>.png')
     def image(key, kind):
         if kind not in VIEWS:
             raise Invalid('没有这个图像视图。')
         record = library.record(key)
-        pixels = photometry.view(library.fields(key), record['config'], kind)
+        pixels = photometry.view(library.fields(key), library.drives(key), record['config'], kind)
         return image_response(pixels, f'{kind}.png' if request.args.get('download') else None)
 
     @api.get('/projects/<key>/drive/<projector>.png')
     def drive(key, projector):
         if projector not in PROJECTORS:
             raise Invalid('请选择 A 机或 B 机。')
-        record = library.record(key)
-        pixels = console.drive_image(record['config'], record['size'], projector)
+        pixels = library.drives(key)[projector]
         return image_response(pixels, f'drive-{projector}.png' if request.args.get('download') else None)
 
     @api.get('/projects/<key>/statistics')
     def statistics(key):
         record = library.record(key)
-        return jsonify(photometry.statistics(library.fields(key), record['config']))
+        return jsonify(photometry.statistics(library.fields(key), library.drives(key), record['config']))
 
     @api.get('/projects/<key>/point')
     def point(key):
         record = library.record(key)
-        return jsonify(console.point(library.fields(key), record['config'], record['size'],
-                                     request.args.get('x', type=int), request.args.get('y', type=int)))
+        return jsonify(console.point(library.fields(key), library.drives(key), record['config'],
+                                     record['size'], request.args.get('x', type=int),
+                                     request.args.get('y', type=int)))
 
     @api.route('/projects/<key>/runs', methods=['GET', 'POST'])
     def runs(key):
@@ -104,7 +108,7 @@ def create_app(root):
     @api.post('/projects/<key>/prepare')
     def prepare(key):
         record = library.record(key)
-        pixels = photometry.view(library.fields(key), record['config'], 'mix')
+        pixels = photometry.view(library.fields(key), library.drives(key), record['config'], 'mix')
         name = record['name'] + ' · 合光'
         tags = dict(booth_source_sha256=record['source_sha256'], booth_revision=record['revision'])
         asset = app.extensions['assets'].put(pixels.astype('float32') / 255, name, tags)

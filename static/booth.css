@@ -75,6 +75,10 @@ legend { padding: 0; font-size: .86rem; font-weight: 650; }
 .fixture-id.blue { background: #304d63; }
 .bounds { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 16px; }
 .target { margin: 10px 0; grid-template-columns: 1fr 75px; align-items: center; }
+.balance-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.balance-summary span { background: #23302e; padding: 5px 8px; border-radius: 5px; font-size: .78rem; color: #ddeae2; }
+#balance { margin-top: 8px; }
+#balanceHint { margin-top: 8px; }
 .outputs { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
 .downloads, .run-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 .downloads a { font-size: .82rem; border-bottom: 1px solid #6a855a; padding-bottom: 2px; }
