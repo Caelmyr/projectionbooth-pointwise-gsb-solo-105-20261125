@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Projection Booth · 双机亮度校样</title>
+  <link rel="stylesheet" href="/static/booth.css">
+  <script src="/static/booth.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <a class="wordmark" href="/"><span class="beams" aria-hidden="true"></span>Projection Booth</a>
+    <a class="subtle" href="/prepare">照片准备 ↗</a>
+  </header>
+  <main>
+    <div class="intro">
+      <h1>双机亮度校样</h1>
+      <button id="demo" class="primary">打开合成练习</button>
+    </div>
+    <details id="library" class="library" open>
+      <summary>校样资料</summary>
+      <div class="library-inner">
+        <label>最近校样<select id="projects"><option value="">选择一组白场</option></select></label>
+        <form id="upload">
+          <label>校样名称<input name="name" type="text" maxlength="84" placeholder="例如：北厅中央幕"></label>
+          <label>A 机白场<input name="a" type="file" accept="image/png" required></label>
+          <label>B 机白场<input name="b" type="file" accept="image/png" required></label>
+          <button>载入白场</button>
+        </form>
+      </div>
+      <p class="small" id="inputHelp">两张已对齐、同尺寸的 8 位灰度 PNG。零代表该机没有有效覆盖。</p>
+    </details>
+    <p id="message" role="status" class="message" hidden></p>
+    <div id="empty" class="empty">打开练习或载入双机白场开始试放。</div>
+    <div id="workbench" class="desk" hidden>
+      <section class="screen" aria-label="幕面校样">
+        <div class="screen-top">
+          <div><h2 id="projectName"></h2><p id="screenSize" class="small"></p></div>
+          <a id="downloadView" class="action" download>下载当前 PNG</a>
+        </div>
+        <div id="tabs" class="tabs" aria-label="幕面视图">
+          <button data-view="mix">合光</button><button data-view="difference">亮度偏差</button>
+          <button data-view="a">A 白场</button><button data-view="b">B 白场</button>
+          <button data-view="drive-a">A 驱动</button><button data-view="drive-b">B 驱动</button>
+        </div>
+        <div class="stage">
+          <div class="canvas">
+            <img id="preview" alt="投影校样幕面">
+            <div id="roi" class="roi" aria-hidden="true"></div>
+            <div id="marker" class="marker" aria-hidden="true" hidden></div>
+          </div>
+        </div>
+        <p id="viewHint" class="small hint"></p>
+        <div id="metrics" class="metrics" aria-live="polite"></div>
+        <div class="probe">
+          <form id="probeForm">
+            <h3>幕面点测</h3>
+            <label>X<input id="probeX" type="number" min="0" value="0" required></label>
+            <label>Y<input id="probeY" type="number" min="0" value="0" required></label>
+            <button>测量</button>
+          </form>
+          <div id="pointInfo" class="readout">点击幕面，或输入原像素坐标。</div>
+        </div>
+      </section>
+      <aside class="console" aria-label="试放控制">
+        <form id="setup">
+          <h2>手动试放</h2>
+          <fieldset class="fixture">
+            <legend><span class="fixture-id">A</span> A 机</legend>
+            <label>驱动 %<input required name="aDrive" type="number" min="0" max="100"></label>
+            <label>上限 %<input required name="aLimit" type="number" min="1" max="100"></label>
+            <label>暖冷偏移<input required name="aCast" type="number" min="-100" max="100"></label>
+          </fieldset>
+          <fieldset class="fixture">
+            <legend><span class="fixture-id blue">B</span> B 机</legend>
+            <label>驱动 %<input required name="bDrive" type="number" min="0" max="100"></label>
+            <label>上限 %<input required name="bLimit" type="number" min="1" max="100"></label>
+            <label>暖冷偏移<input required name="bCast" type="number" min="-100" max="100"></label>
+          </fieldset>
+          <p class="small">偏移为负时偏暖，为正时偏冷。满驱白场 255 对应亮度 100。</p>
+          <fieldset class="bounds">
+            <legend>评估选区</legend>
+            <label>左<input required name="left" type="number" min="0"></label>
+            <label>上<input required name="top" type="number" min="0"></label>
+            <label>右<input required name="right" type="number" min="1"></label>
+            <label>下<input required name="bottom" type="number" min="1"></label>
+          </fieldset>
+          <label class="target">统一亮度目标<input required name="target" type="number" min="1" max="200"></label>
+          <button id="apply" class="primary wide">应用试放设置</button>
+        </form>
+        <div class="outputs">
+          <h2>出片和留档</h2>
+          <div class="downloads"><a id="downloadA" download>下载 A 驱动 PNG</a><a id="downloadB" download>下载 B 驱动 PNG</a></div>
+          <p class="small">线性 8 位驱动图，灰阶 255 对应 100%。</p>
+          <div class="run-actions"><button id="save">保存校样 ZIP</button><button id="prepare">送入照片准备</button></div>
+          <ol id="runs"></ol>
+        </div>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>
